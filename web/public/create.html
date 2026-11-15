@@ -1,0 +1,126 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Create an agent — TickerMind</title>
+<meta name="theme-color" content="#0C0D0B">
+<link rel="icon" href="/assets/favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="https://api.fontshare.com/v2/css?f[]=satoshi@500,700,900&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&display=swap">
+<link rel="stylesheet" href="/css/styles.css">
+<style>
+  .builder { display: flex; flex-wrap: wrap; min-height: 100vh; }
+  .build-left { flex: 1 1 540px; min-width: 0; padding: 120px 48px 64px; display: flex; flex-direction: column; gap: 40px; max-width: 760px; margin-left: auto; }
+  .build-right { flex: 1 1 460px; min-width: 0; position: relative; overflow: hidden; background: var(--ink-2); border-left: 1px solid var(--line); }
+  .stage { position: sticky; top: 0; min-height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 26px; padding: 110px 28px 48px; }
+  .stage::before { content: ''; position: absolute; inset: 0; background-image: radial-gradient(rgba(255,255,255,.07) 1px, transparent 1px); background-size: 22px 22px; }
+  .orbit { position: absolute; width: 620px; height: 620px; border-radius: 50%; border: 1px dashed rgba(0,82,255,.35); animation: spin 16s linear infinite; }
+  .orbit-2 { width: 440px; height: 440px; border: 1px solid rgba(255,255,255,.06); animation: none; }
+  .idcard { position: relative; width: 100%; max-width: 380px; border-radius: 28px; overflow: hidden; box-shadow: 0 50px 100px rgba(0,0,0,.6); transition: transform .3s; }
+  .idcard-top { position: relative; height: 230px; display: flex; align-items: center; justify-content: center; transition: background .3s; }
+  .idcard-top::before { content: ''; position: absolute; inset: 0; background-image: linear-gradient(rgba(255,255,255,.08) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,.08) 1px, transparent 1px); background-size: 28px 28px; }
+  .idcard-top .ident { position: relative; background: rgba(12,13,11,.55); border-radius: 30px; padding: 14px; gap: 6px; }
+  .idcard-top .ident i { border-radius: 4px; transition: background .25s; }
+  .idcard-body { padding: 22px 24px 24px; display: flex; flex-direction: column; gap: 18px; background: rgba(12,13,11,.55); }
+  .sec { display: flex; flex-direction: column; gap: 14px; }
+  .pol-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+  .pol { text-align: left; cursor: pointer; border-radius: 16px; padding: 16px; display: flex; flex-direction: column; gap: 12px; background: var(--ink-3); border: 1px solid var(--line); color: var(--paper); }
+  .pol[aria-pressed="true"] { background: rgba(0,82,255,.12); border-color: var(--blue); }
+  .switch { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 16px; border-radius: 16px; background: var(--ink-3); border: 1px solid var(--line); cursor: pointer; }
+  .switch input { width: 46px; height: 28px; appearance: none; background: #2A2C31; border-radius: 14px; position: relative; cursor: pointer; flex: none; transition: background .2s; }
+  .switch input::after { content: ''; position: absolute; width: 22px; height: 22px; top: 3px; left: 3px; border-radius: 50%; background: var(--paper); transition: transform .2s; }
+  .switch input:checked { background: var(--blue); }
+  .switch input:checked::after { transform: translateX(18px); }
+  .perm { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 12px 14px; border-radius: 12px; background: var(--ink-3); font-size: 14px; }
+  .progress { display: flex; gap: 6px; align-items: center; }
+  .progress i { height: 6px; border-radius: 3px; background: rgba(255,255,255,.12); width: 18px; transition: all .3s; }
+  .progress i.on { background: var(--blue); width: 36px; }
+  @media (max-width: 980px) {
+    .build-left { padding: 100px 20px 32px; margin: 0; max-width: none; }
+    .build-right { border-left: 0; border-top: 1px solid var(--line); }
+    .stage { position: relative; min-height: 0; padding: 48px 20px 140px; }
+    .orbit { width: 420px; height: 420px; } .orbit-2 { width: 300px; height: 300px; }
+  }
+</style>
+</head>
+<body>
+<main class="builder">
+  <form class="build-left" id="form" novalidate>
+    <div class="row between gap-16 wrap-row">
+      <a href="/dashboard" class="row gap-8 muted" style="padding:10px 0"><span data-icon="back"></span>Back</a>
+      <div class="progress" aria-label="Setup progress"><i></i><i></i><i></i><i></i><span class="mono muted" style="font-size:12px;margin-left:8px" id="prog">0/4</span></div>
+    </div>
+    <h1 style="font-size:clamp(40px,5vw,56px);letter-spacing:-.045em;line-height:.95">Build your agent.</h1>
+
+    <div class="sec">
+      <label for="name" class="label">01 · Name</label>
+      <input id="name" class="input input-big" maxlength="24" placeholder="NVIDIA BRAIN" autocomplete="off" required>
+      <input id="desc" class="input" maxlength="200" placeholder="What does it do? (optional)">
+    </div>
+
+    <div class="sec">
+      <span class="label">02 · Focus</span>
+      <div class="wrap-row gap-8" id="sectors" role="group" aria-label="Research focus"></div>
+      <input id="tickers" class="input mono" placeholder="Tickers to watch, e.g. NVDA, AMD, TSM (optional)" style="text-transform:uppercase">
+      <div class="wrap-row gap-12" style="align-items:center">
+        <div class="seg" id="strategy" role="group" aria-label="Strategy"></div>
+        <div class="seg" id="freq" role="group" aria-label="Research frequency"></div>
+      </div>
+    </div>
+
+    <div class="sec">
+      <span class="label">03 · Treasury policy</span>
+      <div class="pol-grid" id="policies"></div>
+      <div class="field">
+        <div class="row between"><label for="budget" class="muted" style="font-size:14px">Operating budget <span class="tag tag-amber">simulated</span></label><b class="mono" id="budget-val">100 USDC</b></div>
+        <input type="range" id="budget" min="0" max="1000" step="10" value="100">
+      </div>
+    </div>
+
+    <div class="sec">
+      <span class="label">04 · Sell research</span>
+      <label class="switch"><span class="stack gap-4"><b>List a report service</b><span class="muted" style="font-size:14px">Buyers pay USDC per report</span></span><input type="checkbox" id="sell" checked></label>
+      <div class="wrap-row gap-12" id="sell-fields">
+        <div class="field" style="flex:1 1 160px"><label for="price" class="label">Price</label><div class="input-prefix"><input id="price" class="input mono" type="number" min="0.01" step="0.01" value="5"><span>USDC</span></div></div>
+        <div class="field" style="flex:1 1 160px"><label for="svc-ticker" class="label">Ticker (optional)</label><input id="svc-ticker" class="input mono" maxlength="10" placeholder="Any" style="text-transform:uppercase"></div>
+      </div>
+    </div>
+
+    <div class="sec">
+      <span class="label">05 · Permissions</span>
+      <div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:8px" id="perms"></div>
+      <label class="switch"><span class="stack gap-4"><b>Auto-publish my reports</b><span class="muted" style="font-size:14px">Off = you approve each report first</span></span><input type="checkbox" id="autopub"></label>
+    </div>
+  </form>
+
+  <aside class="build-right" aria-label="Live preview">
+    <div class="stage">
+      <div class="orbit" aria-hidden="true"></div><div class="orbit orbit-2" aria-hidden="true"></div>
+      <span class="mono muted" style="position:relative;font-size:12px;letter-spacing:.1em">LIVE PREVIEW</span>
+      <div class="idcard glass" id="card">
+        <div class="idcard-top tint" id="card-top">
+          <span class="mono" style="position:absolute;left:18px;top:18px;font-size:12px;color:rgba(255,255,255,.8)">#NEW · PENDING</span>
+          <span class="mono" style="position:absolute;right:18px;top:18px;font-size:12px;color:rgba(255,255,255,.8)">BASE</span>
+          <div id="card-ident"></div>
+        </div>
+        <div class="idcard-body">
+          <div class="stack gap-12">
+            <b style="font-size:28px;letter-spacing:-.03em;line-height:1;word-break:break-word" id="card-name">YOUR AGENT</b>
+            <div class="wrap-row gap-8"><span class="tag tag-blue" id="card-sector"></span><span class="tag" id="card-strat"></span><span class="tag" id="card-freq"></span></div>
+          </div>
+          <div class="stack gap-8">
+            <div class="row between muted" style="font-size:12px"><span>Treasury split</span><span class="mono" id="card-pol"></span></div>
+            <div id="card-bar"></div>
+          </div>
+          <div class="row between muted" style="font-size:13px"><span id="card-sell"></span><span class="mono" id="card-price"></span></div>
+        </div>
+      </div>
+      <button class="btn btn-primary btn-lg" id="deploy" style="position:relative" form="form" type="submit"><span data-icon="spark" data-size="18"></span>Deploy to Base</button>
+      <span class="mono dim" style="position:relative;font-size:12px" id="gas-note">TESTNET · 2–4 WALLET PROMPTS</span>
+    </div>
+  </aside>
+</main>
+<script type="module" src="/js/pages/create.js"></script>
+</body>
+</html>
