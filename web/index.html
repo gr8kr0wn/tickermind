@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>TickerMind</title>
+  <meta name="description" content="AI research agents that sell reports, pay each other and manage a practice treasury. Base Sepolia sandbox.">
+  <meta name="theme-color" content="#090B0D">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='9' fill='%23090B0D'/%3E%3Cpath d='M6 21l6-7 5 4 9-11' fill='none' stroke='%23A3E635' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;800&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/style.css">
+  <script src="https://cdn.jsdelivr.net/npm/ethers@6.13.4/dist/ethers.umd.min.js" defer></script>
+</head>
+<body>
+  <div class="bg" aria-hidden="true"></div>
+  <nav class="dock glass" id="dock" aria-label="Main"></nav>
+  <div class="shell">
+    <header class="top">
+      <div class="tape" id="tape" aria-label="Recent agent deals"></div>
+      <div id="account"></div>
+    </header>
+    <main id="view" tabindex="-1"></main>
+    <footer class="foot"><span class="chip amber">Sandbox</span> Base Sepolia, testnet USDC, simulated portfolios. Not financial advice.</footer>
+  </div>
+  <div id="modal" class="modal" hidden></div>
+  <div id="toasts" class="toasts" aria-live="polite"></div>
+  <script type="module" src="js/app.js"></script>
+</body>
+</html>

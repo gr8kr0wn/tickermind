@@ -1,98 +1,107 @@
 # TickerMind
 
-AI agents that research companies, sell financial intelligence for USDC, and manage their own treasuries on Base.
+AI research agents that sell reports, pay each other, and run a practice treasury.
+Built for the Stocks Maxxing hackathon (Agentic Stock Finance track) on **Base**.
 
-**Track:** Agentic Stock Finance · **Network:** Base Sepolia · **Stack:** plain HTML/CSS/JS + Vercel functions + Supabase + Solidity
+> **Sandbox by design.** Base Sepolia, testnet USDC, simulated portfolios. No real stock trades,
+> no personal investment advice, and agents never get unrestricted control of funds.
+> Everything simulated is labelled **Simulated** in the UI.
 
-```
-Create agent → Configure → Research → Sell reports → Earn USDC → Allocate (paper) → Monitor
-```
-
-## What's in the box
-
-| Folder | What it is |
-|---|---|
-| `contracts/` | Foundry project: `AgentRegistry`, `AgentVault`, `AgentMarketplace` + tests + deploy script |
-| `supabase/migrations/001_init.sql` | Database schema (run once) |
-| `web/public/` | The website: plain HTML, CSS, JS. No framework, no build step |
-| `web/api/` | 10 serverless functions (plain JS) — auth, agents, services, orders, research, reports, treasury, leaderboard, stats, config |
-| `web/lib/` | Server code: research engine, chain helpers, LLM fallback chain, Supabase |
-
-### How the pieces fit
-
-- **Identity:** each agent is registered in `AgentRegistry` → unique onchain ID owned by your wallet.
-- **Research engine:** pulls verified numbers from **Finnhub** and **SEC EDGAR** (every fact keeps its source link), then **Gemini** (falling back to a lighter Gemini model, then **Groq**) writes the interpretation using *only* those facts. Facts and AI opinion are kept visually separate.
-- **Marketplace:** buyers pay USDC into escrow (`AgentMarketplace.purchase`). The backend runs the research, checks quality (≥4 sourced facts), then the operator wallet calls `fulfill(orderId, reportHash)` — payment goes to the seller's vault and the report's keccak256 hash is written onchain. If anything fails, the buyer is refunded automatically (or can self-refund after 24h).
-- **Agent-to-agent economy:** an agent can buy from another agent with its *own treasury* (`purchaseAsAgent`), not your wallet.
-- **Treasury:** `AgentVault` holds real USDC and the owner's allocation policy (e.g. 40/20/40). The agent recommends how to fill its **paper** stock sleeve, weighted by its own research scores. Real money = solid fills. Simulated = hatched. No real or tokenized stocks are ever bought.
-- **Leaderboard:** ranked by verified revenue, completed tasks, ratings and reliability — never by paper returns.
-
----
-
-## Setup (≈30 minutes, all free)
-
-### 1. Supabase
-1. Create a project at [supabase.com](https://supabase.com).
-2. SQL Editor → paste `supabase/migrations/001_init.sql` → Run.
-3. Project Settings → API → copy the **Project URL** and the **service_role** key.
-
-### 2. API keys
-- **Finnhub:** [finnhub.io](https://finnhub.io) → free API key
-- **Gemini:** [aistudio.google.com](https://aistudio.google.com) → Get API key. Check which Flash models your project has on the free tier and set `GEMINI_MODEL` / `GEMINI_FALLBACK_MODEL` to match.
-- **Groq (backup):** [console.groq.com/keys](https://console.groq.com/keys)
-
-### 3. Wallets + testnet funds
-Create **two new wallets** (don't reuse your main one):
-- **Deployer** — pays gas to deploy contracts once.
-- **Operator** — the backend wallet that releases escrow and refunds. Its private key goes in `web/.env`.
-
-Fund both with Base Sepolia ETH (any Base Sepolia faucet, e.g. the Coinbase Developer Platform faucet). Get test USDC for your buyer wallet at [faucet.circle.com](https://faucet.circle.com) (pick Base Sepolia).
-
-### 4. Deploy the contracts
-
-**Easiest (phone works):** run the site (step 5 or 6), then open `/deploy` inside your wallet's browser (Coinbase Wallet or MetaMask app). It deploys all 3 contracts from your wallet, can generate + fund a fresh operator wallet, and gives you the `.env` lines to copy. You need ~0.01 Base Sepolia ETH. The site runs fine before contracts exist.
-
-**Or with Foundry:**
+## Run it in 60 seconds
 
 ```bash
-cd contracts
-forge install foundry-rs/forge-std --no-git   # add --no-commit instead if this folder is a git repo
-cp .env.example .env                           # fill DEPLOYER_PRIVATE_KEY + OPERATOR_ADDRESS
-forge test                                     # 10 tests should pass
-source .env
-forge script script/Deploy.s.sol --rpc-url base_sepolia --broadcast
-```
-Copy the four printed addresses into `web/.env`, then restart the site.
-
-### 5. Run the site locally
-```bash
-cd web
-cp .env.example .env     # fill everything
 npm install
-npm run dev              # → http://localhost:3000
+cp .env.example .env      # optional for a first look, the app runs with zero keys
+npm start                 # http://localhost:3000
 ```
 
-### 6. Deploy to Vercel
-1. Push the repo to GitHub → import it in Vercel.
-2. **Root Directory:** `web` · Framework preset: **Other** (no build command).
-3. Add every variable from `web/.env` under Settings → Environment Variables.
-4. Deploy.
+With no keys it runs on a local JSON database, rule-based reports and simulated payments.
+Open the home page and press **Watch them trade**: one demo agent hires another, money is held in
+escrow, the research runs, and the payment is released. That is the whole product in 20 seconds.
 
----
+## What you fill in (.env)
 
-## Demo script (for judges)
-1. **Connect wallet** → sign in (signature only, no gas).
-2. **Create** → name `NVIDIA BRAIN`, pick Technology, Balanced policy, list a 5 USDC service → **Deploy to Base** (registers the agent onchain and lists its service).
-3. On the agent page → **Research** `NVDA` → review the draft → **Approve & publish**.
-4. From a second wallet → **Marketplace** → **Request** → pay 5 USDC → the agent researches live → report opens with the **Verification** panel showing that its hash matches Base.
-5. Back on the agent → **Treasury**: real USDC (solid) vs paper portfolio (hatched) → **Run allocation** → **Apply**.
-6. Create a second agent and buy from the first **using the agent's treasury** — that's agent-to-agent commerce.
-7. **Ranks** → leaderboard by verified revenue.
+| Variable | What it does | Where to get it (all free) |
+|---|---|---|
+| `SESSION_SECRET` | Signs wallet sessions | `openssl rand -hex 32` |
+| `LLM_API_KEY` | Writes the report text | console.groq.com (free tier) |
+| `SEC_USER_AGENT` | Required by SEC EDGAR | your name + email |
+| `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY` | Persistent database | free Supabase project, then run `supabase/schema.sql` |
+| `AGENT_REGISTRY_ADDRESS`, `MARKETPLACE_ADDRESS` | Onchain contracts | printed by `npm run contracts:deploy` |
+| `DEPLOYER_PRIVATE_KEY` | Deploys contracts (local machine only) | a throwaway wallet with Base Sepolia ETH |
 
-## Notes & limits
-- Free tiers: Finnhub ≈60 calls/min. Gemini free limits vary per project. Owner research is cached for 6 hours per ticker to save quota.
-- SEC EDGAR covers US filers (10-K/10-Q). Foreign filers still get Finnhub facts.
-- `Execute trades` is locked in the MVP by design. Portfolios are simulated.
-- Rebuilding the bundled viem file (only if you upgrade viem): `npm run bundle:viem`.
+## Deploy the contracts (Base Sepolia)
 
-Not financial advice.
+1. Fund a throwaway wallet with Base Sepolia ETH from any faucet.
+2. Put its key in `.env` as `DEPLOYER_PRIVATE_KEY`.
+3. `npm run contracts:deploy` (plain Node, no Foundry needed, works on Termux).
+4. Copy the two printed addresses into `.env`. Remove `DEPLOYER_PRIVATE_KEY` afterwards.
+5. Buyers get testnet USDC at faucet.circle.com (choose Base Sepolia).
+
+## Deploy the app (Railway)
+
+On the server you can skip the heavy dev tools: `npm install --omit=dev` (they are only needed for contract compile/deploy/tests).
+
+Push the repo, create a Railway project from it, add the `.env` values as variables.
+Use Supabase there: Railway's disk is wiped on every redeploy, so the local JSON file is dev-only.
+
+## How it works
+
+```
+Browser (plain HTML/CSS/JS, no build)
+   |  wallet sign-in (signed nonce, no gas)
+Node API ──► Worker queue ──► Research engine ──► Report
+   |                              SEC EDGAR · Stooq prices · news RSS · free LLM
+   ├── Ledger (double-entry, integer micro-USDC) ── Supabase / JSON
+   └── Base Sepolia: AgentRegistry + Marketplace (USDC settles straight to the agent owner)
+```
+
+- **Agents**: created in a 3-step wizard, registered on Base, with explicit permission switches
+  and an allocation policy (reserve / practice stocks / operating) that always totals 100%.
+- **Research**: every request is a queued task, no HTTP request is held open. Facts come from
+  providers only. The LLM may phrase and interpret them, and a numeric guard strips any figure
+  that is not in the retrieved facts. Reports list sources with publish and fetch dates, flag
+  missing data, and label interpretations as AI-generated.
+- **Marketplace**: pay with testnet USDC (`approve` then `payForOrder`). The server verifies the
+  receipt: chain, token, amount, recipient, buyer, agent and order id. Replays are rejected.
+- **Agent-to-agent**: an agent hires another agent. It needs the `requestServices` permission,
+  enough operating funds, and the owner's explicit approval. Funds sit in escrow and are released
+  only when the research is delivered, or refunded if it fails.
+- **Treasury**: double-entry ledger, integer math only. Revenue is split by the agent's policy
+  with the remainder going to operating, so no dust is lost.
+- **Portfolio**: hypothetical positions marked to market, compared with SPY. Realized P/L is
+  always 0 because the MVP never sells.
+
+## Tests
+
+```bash
+npm test
+```
+
+(A `µWS is not compatible` line from ganache is harmless: it falls back to pure Node.)
+
+46 tests: contracts on a local chain, provider parsing with mocked SEC/Stooq/RSS payloads, the LLM
+numeric guard, full API flows (auth, permissions, orders, escrow, ledger invariants), and an onchain
+suite that deploys the real contracts and attacks the payment verifier (underpay, wrong buyer, replay).
+
+## Honest limits
+
+- Live SEC, Stooq and news fetching is covered by mocked tests, but was **not run against the real
+  sites** during the build (the build sandbox blocks them). Run one real report before you demo.
+- The browser wallet flow (connect, register, pay) was tested with real contracts through the API,
+  but not clicked through with a real MetaMask. Do one end-to-end pass on Base Sepolia before the demo.
+- No refund automation for failed human-paid orders: the owner refunds manually (simulated and
+  agent-to-agent payments are refunded automatically).
+- Single-process worker and in-process locks: run one instance. Scale-out needs a real queue.
+- Not implemented from the original spec: separate AgentVault/AllocationManager contracts (the
+  allocation policy lives in `AgentRegistry`, balances in the ledger) and conflicting-source detection.
+
+## Layout
+
+```
+web/        static frontend (index.html, css, js modules)
+api/src/    server, routes, ledger, research engine, worker, chain verification
+api/test/   API, provider and onchain tests
+contracts/  Solidity, node compile/deploy/test scripts
+supabase/   schema.sql
+```
