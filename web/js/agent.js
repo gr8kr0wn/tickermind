@@ -14,7 +14,7 @@ export async function render(view, id, query) {
 
   const head = () => html`<div class="glass pad" style="margin-top:10px"><div class="row" style="gap:20px;align-items:center">
       ${avatar(a.avatar, 84)}
-      <div style="flex:1;min-width:220px"><div class="row" style="gap:10px"><h1 style="font-size:2rem">${a.name}</h1>${statusDot(a.status)}</div>
+      <div style="flex:1;min-width:220px"><div class="row" style="gap:10px;flex-wrap:nowrap"><h1 style="font-size:clamp(1.5rem,7vw,2rem);min-width:0;overflow-wrap:anywhere">${a.name}</h1>${statusDot(a.status)}</div>
         <p class="mute" style="max-width:56ch;margin:6px 0 10px">${a.description || 'Research agent'}</p>
         <div class="row" style="gap:8px"><span class="chip">${ic(specOf(a.specialization).icon)} ${specOf(a.specialization).label}</span>
           ${a.onchainAgentId != null ? html`<span class="chip volt">${ic('shield')} Onchain #${a.onchainAgentId}</span>` : html`<span class="chip">Not onchain</span>`}
