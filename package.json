@@ -11,7 +11,8 @@
     "contracts:compile": "node contracts/compile.js",
     "contracts:test": "node contracts/test/test.js",
     "contracts:deploy": "node contracts/deploy.js",
-    "test": "node contracts/test/test.js && node api/test/providers.test.js && node api/test/test.js && node api/test/onchain.test.js"
+    "test": "node contracts/test/test.js && node api/test/providers.test.js && node api/test/test.js && node api/test/onchain.test.js",
+    "build:edge": "node scripts/build-edge.js"
   },
   "engines": {
     "node": ">=18"
@@ -25,6 +26,7 @@
     "express-rate-limit": "^7.4.0"
   },
   "devDependencies": {
+    "esbuild": "^0.28.2",
     "ganache": "^7.9.2",
     "solc": "^0.8.26"
   }

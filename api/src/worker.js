@@ -51,7 +51,9 @@ async function tick() {
   if (running) return;
   running = true;
   try {
+    const t0 = Date.now();
     for (let i = 0; i < 5; i++) {
+      if (Date.now() - t0 > 100_000) break; // stay inside the edge function time limit
       const task = await db.claimTask();
       if (!task) break;
       await processTask(task);
@@ -83,6 +85,14 @@ async function schedule() {
   }
 }
 
+// serverless: no timers, so schedule at most every 30 min per instance (it is idempotent by task age)
+let lastSchedule = 0;
+async function maybeSchedule() {
+  if (!cfg.schedulerEnabled || Date.now() - lastSchedule < 30 * 60_000) return;
+  lastSchedule = Date.now();
+  await schedule().catch((e) => console.warn('[scheduler]', e.message));
+}
+
 function start() {
   timer = setInterval(tick, cfg.workerIntervalMs);
   if (cfg.schedulerEnabled) {
@@ -92,4 +102,4 @@ function start() {
 }
 const stop = () => clearInterval(timer);
 
-module.exports = { start, stop, tick, processTask };
+module.exports = { start, stop, tick, processTask, maybeSchedule };

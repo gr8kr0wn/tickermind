@@ -124,6 +124,7 @@ create table if not exists positions (
   cost_micro bigint not null,    -- total cost in micro-USD
   bench_units bigint not null,   -- micro-shares of SPY bought with the same cash (benchmark)
   price_micro bigint not null,   -- price per share in micro-USD at buy
+  price_source text,             -- stooq or synthetic
   created_at timestamptz not null default now()
 );
 create index if not exists positions_agent_idx on positions (agent_id);

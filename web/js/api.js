@@ -5,8 +5,11 @@ const listeners = new Set();
 export const onSession = (fn) => listeners.add(fn);
 const emit = () => listeners.forEach((f) => f());
 
+// Backend URL. Edit this one line after you deploy (or set window.TICKERMIND_API before app.js loads).
+export const API_BASE = (typeof window !== 'undefined' && window.TICKERMIND_API) || 'https://irxucxdkwpmsbrqehszx.supabase.co/functions/v1/tickermind-api/api';
+
 export async function api(path, { method = 'GET', body } = {}) {
-  const res = await fetch('/api' + path, { method, headers: { 'Content-Type': 'application/json', ...(state.token ? { Authorization: 'Bearer ' + state.token } : {}) }, body: body ? JSON.stringify(body) : undefined });
+  const res = await fetch(API_BASE + path, { method, headers: { 'Content-Type': 'application/json', ...(state.token ? { Authorization: 'Bearer ' + state.token } : {}) }, body: body ? JSON.stringify(body) : undefined });
   const j = await res.json().catch(() => ({}));
   if (res.status === 401 && state.token) { signOut(); }
   if (!res.ok) throw new Error(j.error || 'Something went wrong. Try again.');

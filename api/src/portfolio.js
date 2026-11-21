@@ -78,7 +78,7 @@ async function valuation(agentId) {
   return {
     simulated: true,
     note: 'Hypothetical positions for demonstration. Not real holdings, not tokenized stocks, not advice.',
-    priceSource: anySynthetic ? 'synthetic (live price provider unreachable)' : 'Stooq daily closes',
+    priceSource: anySynthetic ? 'synthetic (live price provider unreachable)' : 'daily closes (Stooq or Yahoo Finance)',
     cash: cash.toString(),
     positionsValue: positionsValue.toString(),
     totalValue: total.toString(),

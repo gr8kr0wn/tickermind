@@ -38,12 +38,17 @@ escrow, the research runs, and the payment is released. That is the whole produc
 4. Copy the two printed addresses into `.env`. Remove `DEPLOYER_PRIVATE_KEY` afterwards.
 5. Buyers get testnet USDC at faucet.circle.com (choose Base Sepolia).
 
-## Deploy the app (Railway)
+## Deploy the app (Supabase only)
 
-On the server you can skip the heavy dev tools: `npm install --omit=dev` (they are only needed for contract compile/deploy/tests).
+The backend runs as one Supabase Edge Function, and the database is Supabase Postgres (tables prefixed `tm_`).
 
-Push the repo, create a Railway project from it, add the `.env` values as variables.
-Use Supabase there: Railway's disk is wiped on every redeploy, so the local JSON file is dev-only.
+1. Apply `supabase/migrations/001_tickermind_tables.sql` to your project.
+2. Build and deploy the function: `npm run build:edge`, then deploy `supabase/functions/tickermind-api` (JWT verification off).
+3. Add secrets in the dashboard: `LLM_API_KEY` (Groq, free), `SEC_USER_AGENT` (your email), optional `STOOQ_API_KEY`.
+4. Add a pg_cron job (pg_cron + pg_net) that calls `/functions/v1/tickermind-api/api/internal/tick` every 30 seconds.
+5. Host `web/` on any static host. `web/js/api.js` points at the function URL (change `API_BASE` if yours differs).
+
+Deployed contracts (Base Sepolia): AgentRegistry `0x86E368dEe7194756528D2f6C7Cd57c63333d030d`, Marketplace `0xF4eA5a89E613eAb3196333B76763a12039E35E25`.
 
 ## How it works
 
@@ -80,7 +85,7 @@ npm test
 
 (A `µWS is not compatible` line from ganache is harmless: it falls back to pure Node.)
 
-46 tests: contracts on a local chain, provider parsing with mocked SEC/Stooq/RSS payloads, the LLM
+48 tests: contracts on a local chain, provider parsing with mocked SEC/Stooq/RSS payloads, the LLM
 numeric guard, full API flows (auth, permissions, orders, escrow, ledger invariants), and an onchain
 suite that deploys the real contracts and attacks the payment verifier (underpay, wrong buyer, replay).
 

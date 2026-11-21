@@ -6,6 +6,7 @@ const assert = require('assert');
 process.env.LOCAL_DB_FILE = path.join(os.tmpdir(), 'tm-prov-' + Date.now() + '.json');
 process.env.LLM_API_KEY = 'test-key';
 process.env.LLM_MODEL = 'test-model';
+process.env.STOOQ_API_KEY = 'test-stooq-key';
 
 const SEC_REV = { cik: 1045810, taxonomy: 'us-gaap', tag: 'RevenueFromContractWithCustomerExcludingAssessedTax', units: { USD: [
   { start: '2023-01-30', end: '2023-04-30', val: 7192000000, accn: 'a1', fy: 2024, fp: 'Q1', form: '10-Q', filed: '2023-05-24' },
@@ -33,11 +34,24 @@ global.fetch = async (url) => {
   const u = String(url);
   const ok = (body, json = true) => ({ ok: true, status: 200, text: async () => (json ? JSON.stringify(body) : body), json: async () => body });
   if (u.includes('company_tickers.json')) return ok(TICKERS);
+  if (u.includes('CIK0000320193') && u.includes('/companyconcept/')) {
+    // company that switched XBRL tags: the first tag is years stale, a later tag holds the current year
+    const row = (start, end, val) => ({ start, end, val, fp: 'FY', form: '10-K', filed: end });
+    if (u.includes('RevenueFromContract')) return ok({ units: { USD: [row('2021-02-01', '2022-01-30', 26914000000)] } });
+    if (u.includes('/Revenues.json')) return ok({ units: { USD: [row('2023-01-30', '2024-01-28', 60922000000), row('2024-01-29', '2025-01-26', 130497000000)] } });
+    if (u.includes('NetIncomeLoss')) return ok({ units: { USD: [row('2024-01-29', '2025-01-26', 72880000000)] } });
+    return { ok: false, status: 404, text: async () => '{}' };
+  }
   if (u.includes('/companyconcept/') && u.includes('RevenueFromContract')) return ok(SEC_REV);
   if (u.includes('/companyconcept/') && u.includes('NetIncomeLoss')) return ok(SEC_NI);
   if (u.includes('/companyconcept/')) return { ok: false, status: 404, text: async () => '{}' };
   if (u.includes('/submissions/')) return ok(SUBS);
   if (u.includes('stooq.com')) return ok(csv(), false);
+  if (u.includes('query1.finance.yahoo.com')) {
+    const rows = csv().split('\n').slice(1).map((l) => l.split(','));
+    return ok({ chart: { result: [{ timestamp: rows.map((r) => Date.parse(r[0]) / 1000), indicators: { quote: [{ close: rows.map((r) => Number(r[4])) }] } }] } });
+  }
+  if (u.includes('feeds.finance.yahoo.com')) return ok(RSS, false);
   if (u.includes('news.google.com')) return ok(RSS, false);
   if (u.includes('chat/completions')) return ok({ choices: [{ message: { content: JSON.stringify(llmReply) } }] });
   throw new Error('unmocked url ' + u);
@@ -63,6 +77,14 @@ const t = async (name, fn) => { await fn(); n++; console.log('  ok -', name); };
     assert.equal(f.netIncome.value, 29760000000);
   });
 
+  await t('SEC XBRL: a stale tag does not hide the current fiscal year (tag switch)', async () => {
+    const f = await md.getFinancials(320193);
+    assert.equal(f.revenue.end, '2025-01-26');
+    assert.equal(f.revenue.value, 130497000000);
+    assert.equal(f.revenue.tag, 'Revenues');
+    assert.equal(f.misaligned, false);
+  });
+
   await t('filings: keeps only 10-K/10-Q/8-K and builds EDGAR URLs', async () => {
     const f = await md.getFilings(1045810, 'NVDA');
     assert.deepEqual(f.map((x) => x.form), ['8-K', '10-Q', '10-K']);
@@ -75,6 +97,16 @@ const t = async (name, fn) => { await fn(); n++; console.log('  ok -', name); };
     assert.equal(typeof q.priceMicro, 'bigint');
     const s = await md.getPriceStats('NVDA');
     assert.ok(s.last > s.low52 && s.high52 >= s.last);
+  });
+
+  await t('prices fall back to Yahoo Finance when no Stooq key is set', async () => {
+    delete process.env.STOOQ_API_KEY;
+    const q = await md.getQuote('AAPL');
+    assert.equal(q.source, 'yahoo');
+    const s = await md.getPriceStats('AAPL');
+    assert.equal(s.provider, 'Yahoo Finance');
+    assert.ok(s.last > 0 && s.high52 >= s.last);
+    process.env.STOOQ_API_KEY = 'test-stooq-key';
   });
 
   await t('news RSS parsed, entities decoded, dates normalised', async () => {

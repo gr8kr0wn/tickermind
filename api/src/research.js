@@ -24,7 +24,7 @@ async function collect(taskType, target) {
     const stats = await Promise.all(idx.map((t) => md.getPriceStats(t)));
     facts.indexes = idx.map((t, i) => ({ ticker: t, ...(stats[i] || {}) })).filter((x) => x.last);
     if (!facts.indexes.length) missing.push('Index price data unavailable');
-    else sources.push({ title: 'Stooq daily closes (SPY, QQQ, DIA)', url: 'https://stooq.com/q/?s=spy.us', retrievedAt: now, publishedAt: facts.indexes[0].asOf });
+    else sources.push({ title: `${facts.indexes[0].provider || 'Market'} daily closes (SPY, QQQ, DIA)`, url: facts.indexes[0].url || 'https://finance.yahoo.com/quote/SPY/history', retrievedAt: now, publishedAt: facts.indexes[0].asOf });
     const news = await md.getNews('stock market today');
     facts.news = news;
     sources.push(...news.map((n) => ({ ...n, retrievedAt: now })));
@@ -48,7 +48,7 @@ async function collect(taskType, target) {
     co.cik ? md.getFinancials(co.cik) : null,
     co.cik ? md.getFilings(co.cik, co.ticker) : [],
     md.getPriceStats(co.ticker),
-    md.getNews(`${co.name} ${co.ticker} stock`, 6),
+    md.getNews(`${co.name} ${co.ticker} stock`, 6, co.ticker),
   ]);
 
   if (fin?.revenue) {
@@ -61,11 +61,12 @@ async function collect(taskType, target) {
     const n = fin.netIncome;
     facts.netIncome = { value: n.value, prior: n.prior, growthPct: pct(n.value, n.prior), periodEnd: n.end };
     facts.display = { ...(facts.display || {}), netIncome: usd(n.value) };
-    if (facts.revenue && facts.revenue.value) facts.netMarginPct = +((n.value / facts.revenue.value) * 100).toFixed(1);
+    if (facts.revenue && facts.revenue.value && !fin.misaligned) facts.netMarginPct = +((n.value / facts.revenue.value) * 100).toFixed(1);
   } else missing.push('Net income not found in SEC filings data');
+  if (fin?.misaligned) missing.push('Revenue and net income come from different fiscal years in SEC data, so no margin was computed');
   if (stats) {
     facts.price = stats;
-    sources.push({ title: `${co.ticker} price history (Stooq)`, url: `https://stooq.com/q/?s=${co.ticker.toLowerCase()}.us`, publishedAt: stats.asOf, retrievedAt: now });
+    sources.push({ title: `${co.ticker} price history (${stats.provider || 'market data'})`, url: stats.url || `https://finance.yahoo.com/quote/${co.ticker}/history`, publishedAt: stats.asOf, retrievedAt: now });
   } else missing.push('Price history unavailable');
   facts.filings = filings.map((f) => ({ form: f.form, filed: f.publishedAt }));
   sources.push(...filings.map(({ form, ...s }) => ({ ...s, retrievedAt: now })));
